@@ -1,0 +1,40 @@
+name: ChromeOS-Fast-Docker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3600
+
+    steps:
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Connect to Tailscale
+        run: |
+          # تأكد من وضع المفتاح في Secrets باسم TAILSCALE_AUTH_KEY
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-fast-system
+
+      - name: Launch Containerized System
+        run: |
+          # تشغيل النظام مباشرة من Docker Hub دون الحاجة لرفع ملفات
+          docker run -d --name chrome-os \
+            --device /dev/kvm \
+            -p 6080:6080 \
+            -v /dev/kvm:/dev/kvm \
+            -e EMULATOR_DEVICE="Google Pixelbook" \
+            -e WEB_VNC=true \
+            budtmo/docker-android:emulator_11.0
+
+      - name: Connection Details
+        run: |
+          TS_IP=$(tailscale ip -4)
+          echo "=========================================="
+          echo "System is Ready!"
+          echo "URL: http://$TS_IP:6080"
+          echo "Tailscale IP: $TS_IP"
+          echo "=========================================="
+          while true; do sleep 300; done
